@@ -1,0 +1,25 @@
+name: Auto-update DMR rate
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate new rate
+        run: |
+          OLD=$(jq '.rate' rate.json)
+          DELTA=$(awk -v min=-0.001 -v max=0.001 'BEGIN{srand(); printf "%.4f", min+rand()*(max-min)}')
+          NEW=$(awk -v r="$OLD" -v d="$DELTA" 'BEGIN{v=r+d; if(v<0.01) v=0.01; printf "%.4f", v}')
+          echo "{ \"rate\": $NEW }" > rate.json
+
+      - name: Commit and push
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -am "Update rate"
+          git push
